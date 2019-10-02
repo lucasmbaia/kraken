@@ -1,0 +1,21 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.12
+        environment:
+          GO111MODULE: "on"
+          GOPROXY: "https://proxy.golang.org"
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-mod-cache
+      - run:
+          name: "Tests"
+          command: |
+            go test ./...
+      - save_cache:
+          key: v1-mod-cache
+          paths:
+            - "/go/pkg/mod"
