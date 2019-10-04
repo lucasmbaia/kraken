@@ -1,5 +1,9 @@
 package config
 
+import (
+	"github.com/lucasmbaia/kraken/workflow"
+)
+
 var (
 	EnvConfig	Config
 )

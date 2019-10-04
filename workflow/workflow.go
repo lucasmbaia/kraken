@@ -2,8 +2,9 @@ package workflow
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"context"
-	"ioutil"
+	"path"
 	"fmt"
 	"os"
 )
@@ -12,6 +13,7 @@ type Workflow struct {
 	Name		string	`json:",omitempty"`
 	Description	string	`json:",omitempty"`
 	Version		int	`json:",omitempty"`
+	Body		[]byte	`json:",omitempty"`
 	Tasks		[]Task	`json:",omitempty"`
 }
 
@@ -21,7 +23,7 @@ type WorklowManager struct {
 	Restart chan struct{}
 }
 
-type Congig struct {
+type Config struct {
 	Path		string
 	EtcdURL		string
 	EtcdKeys	[]string
@@ -40,7 +42,7 @@ func ReadWorkflows(c Config) (w []Workflow, err error) {
 			c.Path += "/"
 		}
 
-		if _, err = os.Stat(c.Path); os.IsNotExists(err) || err != nil {
+		if _, err = os.Stat(c.Path); os.IsNotExist(err) || err != nil {
 			return
 		}
 
