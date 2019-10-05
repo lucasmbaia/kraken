@@ -4,9 +4,16 @@ import (
 	"encoding/json"
 	"reflect"
 	"context"
+	"errors"
+	"time"
 	"sync"
+	"fmt"
 
 	"github.com/lucasmbaia/kraken/workflow"
+)
+
+const (
+	defaultDeadlineContext = 50000000
 )
 
 type Core struct {
@@ -49,6 +56,9 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow) {
 				output	[]reflect.Value
 				body	[]byte
 				ok	bool
+				ct	context.Context
+				cancel	context.CancelFunc
+				done	= make(chan struct{})
 			)
 
 			defer s.Mutex.Unlock()
@@ -60,7 +70,7 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow) {
 
 			if ft.NumIn() > 0 {
 				for i := 0; i < ft.NumIn(); i++ {
-					if arg, err = c.setParameters(ctx, wf.Body, ft.In(i)); err != nil {
+					if arg, err = c.setParameters(ctx, wf.Body, results, t.Task.Dependency, ft.In(i)); err != nil {
 						break
 					}
 
@@ -68,13 +78,29 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow) {
 				}
 			}
 
-			output = fn.MethodByName(t.Task.TaskReference).Call(args)
-			s.Mutex.Lock()
+			if t.Task.Timeout > 0 {
+				t.Task.Timeout = defaultDeadlineContext
+			}
 
+			ct, cancel = context.WithTimeout(context.Background(), time.Duration(t.Task.Timeout) * time.Millisecond)
+			defer cancel()
+
+			go func() {
+				output = fn.MethodByName(t.Task.TaskReference).Call(args)
+				done <- struct{}{}
+			}()
+
+			select {
+			case _ = <-done:
+			case <-ct.Done():
+				err = errors.New(fmt.Sprintf("Timeout reached to task name \"%s\"", t.Task.Name))
+			}
+
+			s.Mutex.Lock()
 			if err == nil {
 				for out := range output {
 					if ft.Out(out).Kind() != reflect.Interface {
-						if body, err = json.Marshal(output[out]); err != nil {
+						if body, err = json.Marshal(output[out].Interface()); err != nil {
 							break
 						}
 
@@ -109,12 +135,23 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow) {
 					close(s.ReadyTasks)
 					close(errc)
 				}
+			} else {
+				for i := 0; i < size; i++ {
+					errc <- err
+				}
+
+				closeTasks(s)
+				return
 			}
 		}(rt)
 	}
+
+	for _, key := range results {
+		fmt.Println(string(key))
+	}
 }
 
-func (c *Core) setParameters(ctx context.Context, body []byte, ft reflect.Type) (arg reflect.Value, err error) {
+func (c *Core) setParameters(ctx context.Context, body []byte, results Results, dep []string, ft reflect.Type) (arg reflect.Value, err error) {
 	switch ft.Kind() {
 	case reflect.Ptr:
 		arg = reflect.New(ft.Elem())
@@ -122,11 +159,27 @@ func (c *Core) setParameters(ctx context.Context, body []byte, ft reflect.Type) 
 		if err = json.Unmarshal(body, arg.Interface()); err != nil {
 			return
 		}
+
+		for _, d := range dep {
+			if _, ok := results[d]; ok {
+				if err = json.Unmarshal(results[d], arg.Interface()); err != nil {
+					return
+				}
+			}
+		}
 	case reflect.Struct:
 		arg = reflect.New(ft).Elem()
 
 		if err = json.Unmarshal(body, &arg); err != nil {
 			return
+		}
+
+		for _, d := range dep {
+			if _, ok := results[d]; ok {
+				if err = json.Unmarshal(results[d], &arg); err != nil {
+					return
+				}
+			}
 		}
 	case reflect.Interface:
 		arg = reflect.New(ft).Elem()

@@ -9,7 +9,7 @@ type Task struct {
 	Description	string		`json:",omitempty"`
 	TaskReference	string		`json:",omitempty"`
 	Dependency	[]string	`json:",omitempty"`
-	Timeout		string		`json:",omitempty"`
+	Timeout		int		`json:",omitempty"`
 	Type		string		`json:",omitempty"`
 	Drive		string		`json:",omitempty"`
 	Retry		int		`json:",omitempty"`
