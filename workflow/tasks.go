@@ -13,7 +13,7 @@ type Task struct {
 	Type		string		`json:",omitempty"`
 	Drive		string		`json:",omitempty"`
 	Retry		int		`json:",omitempty"`
-	RetryDelay	string		`json:",omitempty"`
+	RetryDelay	int		`json:",omitempty"`
 	Rollback	Rollback	`json:",omitempty"`
 	GrpcService	GrpcService	`json:",omitempty"`
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"context"
 	"time"
+	"fmt"
 	//"errors"
 )
 
@@ -24,8 +25,9 @@ type MockSplit struct {
 
 func (m MockCore) Sum(ctx context.Context, msint *MockSum) (msout *MockSum, err error) {
 	msout = &MockSum{C: msint.A + msint.B}
+	fmt.Println("SUM")
 	//err = errors.New("TESTE")
-	time.Sleep(10 * time.Second)
+	time.Sleep(1000 * time.Millisecond)
 	return
 }
 
@@ -50,12 +52,14 @@ func Test_RunWorkflow(t *testing.T) {
 					Name:		"MockSum",
 					TaskReference:	"Sum",
 					Timeout:	50,
+					Retry:		3,
+					RetryDelay:	1500,
 				},
 				{
 					Name:		"MockSplit",
 					TaskReference:	"Split",
 					Dependency:	[]string{"MockSum"},
-					Timeout: 	50,
+					Timeout:	50,
 				},
 			},
 		}, []interface{}{mc}},

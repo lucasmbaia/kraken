@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"context"
-	"errors"
+	//"errors"
 	"time"
 	"sync"
 	"fmt"
@@ -49,6 +49,73 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow) {
 	for rt := range s.ReadyTasks {
 		go func(t Tasks) {
 			var (
+				response	[]byte
+				done		= make(chan struct{}, 1)
+				errout		= make(chan struct{}, 1)
+				call		= make(chan struct{}, 1)
+				retry		= 1
+				check		= make(chan struct{}, 1)
+			)
+
+			go func() {
+				call <- struct{}{}
+			}()
+
+			go func() {
+				for {
+					select {
+					case _ = <-call:
+						if response, err = c.grpc(ctx, t.Task, wf.Body, results); err != nil {
+							check <- struct{}{}
+						} else {
+							done <- struct{}{}
+						}
+					case _ = <-check:
+						if t.Task.Retry > 0 && retry < t.Task.Retry {
+							retry++
+
+							if t.Task.RetryDelay > 0 {
+								time.Sleep(time.Duration(t.Task.RetryDelay) * time.Millisecond)
+							}
+
+							call <- struct{}{}
+							break
+						}
+
+						errout <- struct{}{}
+					}
+				}
+			}()
+
+			select {
+			case _ = <-done:
+				results[t.Task.Name] = response
+				err = nil
+
+				s.Mutex.Lock()
+				if wgs, ok := s.Dependents[t.Task.Name]; ok {
+					for _, wg := range wgs {
+						wg.Done()
+					}
+
+					delete(s.Dependents, t.Task.Name)
+				}
+
+				totalTasks--
+
+				if totalTasks == 0 {
+					close(s.ReadyTasks)
+					close(errc)
+				}
+				s.Mutex.Unlock()
+			case _ = <-errout:
+				for i := 0; i < size; i++ {
+					errc <- err
+				}
+
+				closeTasks(s)
+			}
+			/*var (
 				fn	reflect.Value
 				ft	reflect.Type
 				args	[]reflect.Value
@@ -59,6 +126,9 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow) {
 				ct	context.Context
 				cancel	context.CancelFunc
 				done	= make(chan struct{})
+				//retry	= 0
+				//errout	= make(chan error, 1)
+				//call	= make(chan struct{})
 			)
 
 			defer s.Mutex.Unlock()
@@ -78,7 +148,7 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow) {
 				}
 			}
 
-			if t.Task.Timeout > 0 {
+			if t.Task.Timeout == 0 {
 				t.Task.Timeout = defaultDeadlineContext
 			}
 
@@ -142,7 +212,7 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow) {
 
 				closeTasks(s)
 				return
-			}
+			}*/
 		}(rt)
 	}
 
