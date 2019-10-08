@@ -12,7 +12,7 @@ import (
 type Workflow struct {
 	Name		string	`json:",omitempty"`
 	Description	string	`json:",omitempty"`
-	Version		int	`json:",omitempty"`
+	Version		int32	`json:",omitempty"`
 	Body		[]byte	`json:",omitempty"`
 	Tasks		[]Task	`json:",omitempty"`
 }

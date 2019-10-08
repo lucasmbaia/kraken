@@ -3,11 +3,11 @@ package core
 import (
 	"encoding/json"
 	"reflect"
-	"context"
 	"errors"
 	"time"
 	"fmt"
 
+	"golang.org/x/net/context"
 	"github.com/lucasmbaia/kraken/workflow"
 )
 

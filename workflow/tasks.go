@@ -18,6 +18,12 @@ type Task struct {
 	GrpcService	GrpcService	`json:",omitempty"`
 }
 
+type TaskStatus struct {
+	TotalSteps	int32
+	ActualStep	int32
+	Name		string
+}
+
 type GrpcService struct {
 	Kind	string
 }
@@ -34,8 +40,6 @@ type Sign struct {
 
 type Clients map[string]Sign
 
-//var TaskClients = make(Clients)
-
 func RegisterClients(clients []interface{}) (tc Clients, err error) {
 	tc = make(Clients)
 
@@ -47,8 +51,6 @@ func RegisterClients(clients []interface{}) (tc Clients, err error) {
 			tc[ft.Method(i).Name] = Sign{
 				FN:	fn,
 				FT:	fn.MethodByName(ft.Method(i).Name).Type(),
-				//FT: ft.Method(i).Func.Type(),
-				//FT: ft.Method(i).Type,
 			}
 		}
 	}

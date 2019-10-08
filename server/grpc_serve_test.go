@@ -1,9 +1,11 @@
-package core
+package server
 
 import (
 	"github.com/lucasmbaia/kraken/workflow"
+	"github.com/lucasmbaia/kraken/proto"
 	"testing"
-	"context"
+	"golang.org/x/net/context"
+	//"fmt"
 )
 
 type MockCore struct {}
@@ -36,11 +38,13 @@ func Test_RunWorkflow(t *testing.T) {
 
 	var tests = []struct{
 		name	string
+		//ks	*KrakenServer
 		wf	workflow.Workflow
 		clients	[]interface{}
 	}{
-		{"without depedency", workflow.Workflow{
-			Body:	[]byte(`{"A": 1, "B": 2}`),
+		//{"without depedency", ks},
+		{"teste", workflow.Workflow{
+			Name:	"kraken",
 			Tasks:	[]workflow.Task{
 				{
 					Name:		"MockSum",
@@ -56,20 +60,27 @@ func Test_RunWorkflow(t *testing.T) {
 					Timeout:	50,
 				},
 			},
-		}, []interface{}{mc}},
+		},[]interface{}{mc}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var c Core
+			var ks *KrakenServer
 
-			if c, err = NewCore(CoreConfig{
+			if ks, err = NewKrakenServer(KrakenServerConfig{
 				Clients:	tt.clients,
 			}); err != nil {
 				t.Fatal(err)
 			}
 
-			c.RunWorkflow(context.Background(), tt.wf, nil)
+			ks.wf = append(ks.wf, tt.wf)
+			ks.Workflow(context.Background(), &orchestrator.Task{
+				Name: "kraken",
+				Parameters:	[]byte(`{"A": 1, "B": 2}`),
+			})
+			//tt.ks.Workflow(context.Background(), &orchestrator.Task{
+			//	Name:	"kraken",
+			//})
 		})
 	}
 }

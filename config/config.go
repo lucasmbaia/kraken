@@ -11,6 +11,8 @@ var (
 type Config struct {
 	Server	bool	`hcl:"server"`
 	Client	bool	`hcl:"client"`
+
+	Workflow	workflow.Config	`json:",omitempty"`
 }
 
 type Workflow struct {

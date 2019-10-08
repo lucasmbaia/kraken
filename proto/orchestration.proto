@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package orchestrator;
+
+message Task {
+	string name = 1;
+	bytes parameters = 2;
+	int32 version = 3;
+}
+
+enum StatusCode {
+	Unknown = 0;
+	Ok = 1;
+	Failed = 2;
+	InProgress = 3;
+}
+
+message Status {
+	string Message = 1;
+	StatusCode Code = 2;
+	map<string, bytes> response = 3;
+}
+
+message Response {
+	string id = 1;
+}
+
+service OrchestratorService {
+	rpc Workflow(Task) returns (Response) {}
+}
