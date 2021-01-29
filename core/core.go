@@ -30,13 +30,13 @@ func NewCore(cfg CoreConfig) (c Core, err error) {
 	return
 }
 
-func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow, ts chan<- workflow.TaskStatus) (results Results, err error) {
+func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow, ts chan<- workflow.TaskStatus, agr Results) (results Results, we WError) {
 	var (
 		s		Steps
 		errc		= make(chan error, len(wf.Tasks))
-		//results		= make(Results, len(wf.Tasks))
 		size		= len(wf.Tasks)
 		totalTasks	= len(wf.Tasks)
+		err		error
 	)
 
 	results = make(Results, len(wf.Tasks))
@@ -65,7 +65,7 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow, ts chan<- 
 				for {
 					select {
 					case _ = <-call:
-						if response, err = c.grpc(ctx, t.Task, wf.Body, results); err != nil {
+						if response, err = c.grpc(ctx, t.Task, wf.Body, results, agr); err != nil {
 							check <- struct{}{}
 						} else {
 							done <- struct{}{}
@@ -114,6 +114,11 @@ func (c *Core) RunWorkflow(ctx context.Context, wf workflow.Workflow, ts chan<- 
 				}
 
 				closeTasks(s)
+
+				we = WError{
+					Error:	err,
+					Task:	t.Task.Name,
+				}
 			}
 		}(rt)
 	}

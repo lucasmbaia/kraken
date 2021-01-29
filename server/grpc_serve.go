@@ -66,27 +66,49 @@ func (k *KrakenServer) Workflow(ctx context.Context, t *orchestrator.Task) (r *o
 	k.tasks[t.Name] = workflow.TaskStatus{TotalSteps: int32(len(wf.Tasks))}
 	k.Unlock()
 
-	k.workflow(ctx, wf, t.Name)
+	k.workflow(ctx, wf, t)
 	return
 }
 
-func (k *KrakenServer) workflow(ctx context.Context, wf workflow.Workflow, id string) {
+func (k *KrakenServer) workflow(ctx context.Context, wf workflow.Workflow, t *orchestrator.Task) {
 	var (
 		ts	= make(chan workflow.TaskStatus)
 		results	core.Results
-		err	error
+		we	WError
 	)
 
 	go func() {
 		for {
 			select{
 			case t := <-ts:
-				fmt.Println(t)
+				fmt.Println("TA AQUI", t)
 			}
 		}
 	}()
 
-	if results, err = k.core.RunWorkflow(ctx, wf, ts); err != nil {
+	if results, we = k.core.RunWorkflow(ctx, wf, ts, nil); we.Error != nil {
+		if wf.Tasks[we.Task].Rollback.Name != "" {
+			var wfr workflow.Workflow
+
+			for _, w := range k.wf {
+				if w.Name == t.Name && w.Version == t.Version {
+					wfr = w
+					break
+				}
+			}
+
+			wfr.Body = t.Parameters
+
+			for idx, task := range wf.Tasks {
+				if task.Name == we.Task {
+					wf.Tasks = wf.Tasks[idx:]
+				}
+			}
+
+			k.core.RunWorkflow(ctx, wfr, nil, results)
+			//k.core.Rollback(ctx, wfr, 0, nil)
+		}
+
 		return
 	}
 

@@ -38,12 +38,10 @@ func Test_RunWorkflow(t *testing.T) {
 
 	var tests = []struct{
 		name	string
-		//ks	*KrakenServer
-		wf	workflow.Workflow
+		wf	[]workflow.Workflow
 		clients	[]interface{}
 	}{
-		//{"without depedency", ks},
-		{"teste", workflow.Workflow{
+		{"without rollback", []workflow.Workflow{{
 			Name:	"kraken",
 			Tasks:	[]workflow.Task{
 				{
@@ -60,7 +58,33 @@ func Test_RunWorkflow(t *testing.T) {
 					Timeout:	50,
 				},
 			},
-		},[]interface{}{mc}},
+		}},[]interface{}{mc}},
+		/*{"with rollback", workflow.Workflow{
+			Name:	"kraken",
+			Tasks:	[]workflow.Task{
+				{
+					Name:		"MockSum",
+					TaskReference:	"Sum",
+					Timeout:	50,
+					Retry:		3,
+					RetryDelay:	1500,
+					Rollback:	workflow.Rollback{
+						Name:	"MockSumRollback",
+						Step:	1
+					},
+				},
+				{
+					Name:		"MockSplit",
+					TaskReference:	"Split",
+					Dependency:	[]string{"MockSum"},
+					Timeout:	50,
+					Rollback:	workflow.Rollback{
+						Name:	"MockSumRollback",
+						Step:	1
+					},
+				},
+			},
+		},[]interface{}{mc}},*/
 	}
 
 	for _, tt := range tests {
@@ -73,14 +97,11 @@ func Test_RunWorkflow(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			ks.wf = append(ks.wf, tt.wf)
+			ks.wf = append(ks.wf, tt.wf...)
 			ks.Workflow(context.Background(), &orchestrator.Task{
 				Name: "kraken",
 				Parameters:	[]byte(`{"A": 1, "B": 2}`),
 			})
-			//tt.ks.Workflow(context.Background(), &orchestrator.Task{
-			//	Name:	"kraken",
-			//})
 		})
 	}
 }

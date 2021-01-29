@@ -4,6 +4,7 @@ import (
 	"github.com/lucasmbaia/kraken/workflow"
 	"testing"
 	"context"
+	"fmt"
 )
 
 type MockCore struct {}
@@ -21,6 +22,7 @@ type MockSplit struct {
 }
 
 func (m MockCore) Sum(ctx context.Context, msint *MockSum) (msout *MockSum, err error) {
+	fmt.Println(msint)
 	msout = &MockSum{C: msint.A + msint.B}
 	return
 }
@@ -37,6 +39,7 @@ func Test_RunWorkflow(t *testing.T) {
 	var tests = []struct{
 		name	string
 		wf	workflow.Workflow
+		agr	Results
 		clients	[]interface{}
 	}{
 		{"without depedency", workflow.Workflow{
@@ -56,7 +59,7 @@ func Test_RunWorkflow(t *testing.T) {
 					Timeout:	50,
 				},
 			},
-		}, []interface{}{mc}},
+		}, map[string][]byte{"MockSum": []byte(`{"A": 1, "B": 2, "C": 3}`)}, []interface{}{mc}},
 	}
 
 	for _, tt := range tests {
@@ -69,7 +72,7 @@ func Test_RunWorkflow(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			c.RunWorkflow(context.Background(), tt.wf, nil)
+			c.RunWorkflow(context.Background(), tt.wf, nil, tt.agr)
 		})
 	}
 }

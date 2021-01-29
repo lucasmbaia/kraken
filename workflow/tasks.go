@@ -31,6 +31,7 @@ type GrpcService struct {
 type Rollback struct {
 	Name		string	`json:",omitempty"`
 	Description	string	`json:",omitempty"`
+	Step		string	`json:",omitempty"`
 }
 
 type Sign struct {

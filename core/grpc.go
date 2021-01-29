@@ -11,7 +11,7 @@ import (
 	"github.com/lucasmbaia/kraken/workflow"
 )
 
-func (c *Core) grpc(ctx context.Context, t workflow.Task, body []byte, results Results) (response []byte, err error) {
+func (c *Core) grpc(ctx context.Context, t workflow.Task, body []byte, results, agr Results) (response []byte, err error) {
 	var (
 		fn      reflect.Value
 		ft      reflect.Type
@@ -31,7 +31,7 @@ func (c *Core) grpc(ctx context.Context, t workflow.Task, body []byte, results R
 
 	if ft.NumIn() > 0 {
 		for i := 0; i < ft.NumIn(); i++ {
-			if arg, err = c.setGrpcParameters(ctx, body, results, t.Dependency, ft.In(i)); err != nil {
+			if arg, err = c.setGrpcParameters(ctx, body, results, agr, t.Dependency, ft.In(i)); err != nil {
 				break
 			}
 
@@ -75,7 +75,7 @@ func (c *Core) grpc(ctx context.Context, t workflow.Task, body []byte, results R
 	return
 }
 
-func (c *Core) setGrpcParameters(ctx context.Context, body []byte, results Results, dep []string, ft reflect.Type) (arg reflect.Value, err error) {
+func (c *Core) setGrpcParameters(ctx context.Context, body []byte, results, agr Results, dep []string, ft reflect.Type) (arg reflect.Value, err error) {
 	switch ft.Kind() {
 	case reflect.Ptr:
 		arg = reflect.New(ft.Elem())
@@ -91,6 +91,14 @@ func (c *Core) setGrpcParameters(ctx context.Context, body []byte, results Resul
 				}
 			}
 		}
+
+		if agr != nil {
+			for _, r := range agr {
+				if err = json.Unmarshal(r, arg.Interface()); err != nil {
+					return
+				}
+			}
+		}
 	case reflect.Struct:
 		arg = reflect.New(ft).Elem()
 
@@ -101,6 +109,14 @@ func (c *Core) setGrpcParameters(ctx context.Context, body []byte, results Resul
 		for _, d := range dep {
 			if _, ok := results[d]; ok {
 				if err = json.Unmarshal(results[d], &arg); err != nil {
+					return
+				}
+			}
+		}
+
+		if agr != nil {
+			for _, r := range agr {
+				if err = json.Unmarshal(r, &arg); err != nil {
 					return
 				}
 			}
